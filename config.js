@@ -1,4 +1,4 @@
 window.APP_CONFIG = {
   supabaseUrl: 'https://rtnigoszuttbmyvzgscu.supabase.co',
-  supabaseKey: ''
+  supabaseKey: 'sb_publishable_tnlE3wVwIT8RHkPXJb5-jQ_MxlwhnKR'
 };
