@@ -11,9 +11,8 @@ const oldRenderRoute=renderRoute;renderRoute=function(){oldRenderRoute();documen
 const oldRenderAll=renderAll;renderAll=function(){oldRenderAll();const rows=document.querySelectorAll('#allTable tbody tr');let arr=[];const city=document.getElementById('cityFilter').value,q=(document.getElementById('q').value||'').toLowerCase(),st=document.getElementById('statusFilter').value;arr=city==='ALL'?allChurches():allChurches().filter(x=>x.city===city);arr=arr.filter(x=>(x.name+' '+x.addr+' '+x.city).toLowerCase().includes(q));if(st!=='all')arr=arr.filter(x=>st==='done'?!!state.visited[x.city+'|'+x.idx]:!state.visited[x.city+'|'+x.idx]);rows.forEach((r,i)=>{const x=arr[i];if(!x)return;const td=document.createElement('td');td.innerHTML=`<span class="small"><b>${prioridadeBadge(x.city,x.name,x.addr)}</b><br>${cultoBadge(x.city,x.name,x.addr)}</span>${isAdmin()?`<br><button class="btn secondary" style="padding:4px 8px;margin-top:4px" onclick="editarOperacaoIgreja(${JSON.stringify(x.city)},${JSON.stringify(x.name)},${JSON.stringify(x.addr)})">Editar</button>`:''}`;r.appendChild(td);});const h=document.querySelector('#allTable thead tr');if(h&&!h.querySelector('.ophead')){const th=document.createElement('th');th.className='ophead';th.textContent='Prioridade / Culto';h.appendChild(th);}};
 const oldAplicarSessao=aplicarSessao;aplicarSessao=async function(session){await oldAplicarSessao(session);await carregarIgrejaCfg();};
 setTimeout(()=>{if(authUser)carregarIgrejaCfg();},1200);
-// Carrega a camada eleitoral aprimorada sem alterar a base operacional.
 (function(){const s=document.createElement('script');s.src='election-enhanced.js?v=1';s.defer=false;document.body.appendChild(s);})();
-// Carrega as melhorias de Rota, Todas as igrejas, Mapa, Calendário e Administração.
 (function(){const s=document.createElement('script');s.src='outros-campos-enhanced.js?v=1';s.defer=false;document.body.appendChild(s);})();
-// Carrega o painel dedicado de dias e horários de culto.
-(function(){const s=document.createElement('script');s.src='cultos-painel.js?v=1';s.defer=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='cultos-painel.js?v=2';s.defer=false;document.body.appendChild(s);})();
+// Pesquisa e preenche as 50 primeiras igrejas do roteiro, preservando edições manuais.
+(function(){const s=document.createElement('script');s.src='cultos-seed-50.js?v=1';s.defer=false;document.body.appendChild(s);})();
