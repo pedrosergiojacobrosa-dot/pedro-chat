@@ -13,3 +13,5 @@ const oldAplicarSessao=aplicarSessao;aplicarSessao=async function(session){await
 setTimeout(()=>{if(authUser)carregarIgrejaCfg();},1200);
 // Carrega a camada eleitoral aprimorada sem alterar a base operacional.
 (function(){const s=document.createElement('script');s.src='election-enhanced.js?v=1';s.defer=false;document.body.appendChild(s);})();
+// Carrega as melhorias de Rota, Todas as igrejas, Mapa, Calendário e Administração.
+(function(){const s=document.createElement('script');s.src='outros-campos-enhanced.js?v=1';s.defer=false;document.body.appendChild(s);})();
