@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "JurisITU — Robô SEI Assistido",
+  "version": "1.0.0",
+  "description": "Conecta o JurisITU à sessão já autenticada do SEI e prepara etapas sem armazenar senha nem confirmar atos oficiais.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["https://pedrosergiojacobrosa-dot.github.io/*", "https://cidades.sei.sp.gov.br/*"],
+  "background": {"service_worker": "background.js"},
+  "content_scripts": [
+    {"matches": ["https://pedrosergiojacobrosa-dot.github.io/pedro-chat/jurisitu/*"], "js": ["bridge.js"], "run_at": "document_start"},
+    {"matches": ["https://cidades.sei.sp.gov.br/*"], "js": ["sei-assistant.js"], "run_at": "document_idle"}
+  ],
+  "action": {"default_title": "JurisITU — Robô SEI"}
+}
