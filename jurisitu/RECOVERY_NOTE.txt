@@ -1,0 +1,1 @@
+Hotfix em andamento: substituição do carregador V9 que causava Failed to fetch pela página direta V8.
