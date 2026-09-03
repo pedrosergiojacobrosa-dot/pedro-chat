@@ -30,3 +30,6 @@ setTimeout(()=>{if(authUser)carregarIgrejaCfg();},1200);
 (function(){const s=document.createElement('script');s.src='mapa-agenda-v4.js?v=1';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='visitas-global-v2.js?v=3';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='horario-dia-rota-v1.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='rotas-flex-v7.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='rota-cards-flex-v1.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='avisos-operacionais-v1.js?v=1';s.async=false;document.body.appendChild(s);})();
