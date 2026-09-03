@@ -18,4 +18,4 @@ setTimeout(()=>{if(authUser)carregarIgrejaCfg();},1200);
 (function(){const s=document.createElement('script');s.src='route-editor.js?v=1';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='rotas-cultos-v2.js?v=1';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='realtime-sync.js?v=1';s.async=false;document.body.appendChild(s);})();
-(function(){const s=document.createElement('script');s.src='mapa-fix-v3.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='mapa-fix-v3.js?v=2';s.async=false;document.body.appendChild(s);})();
