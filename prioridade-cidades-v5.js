@@ -28,9 +28,16 @@
   }
   function buildGroups(eligible){
     const pools=orderedCityPools(eligible),groups=[];
+    // Primeiro ocupamos carros completos, sempre respeitando a ordem das cidades.
     for(const pool of pools){
-      while(pool.items.length&&groups.length<3){groups.push({city:pool.city,items:pool.items.splice(0,4)});}
+      while(pool.items.length>=4&&groups.length<3)groups.push({city:pool.city,items:pool.items.splice(0,4)});
       if(groups.length>=3)break;
+    }
+    // Se ainda houver carro, usamos apenas UM grupo parcial, da cidade mais prioritária restante.
+    // Assim os blocos Carro A/B/C continuam íntegros no restante do site.
+    if(groups.length<3){
+      const partial=pools.find(p=>p.items.length>0);
+      if(partial)groups.push({city:partial.city,items:partial.items.splice(0,4)});
     }
     return groups;
   }
@@ -57,20 +64,20 @@
     if(!confirm(`${label}\n\nFila de cidades: ${fila}\n\n${resumo}\n\nCada carro ficará em uma única cidade. Gerar e sincronizar esta rota?`))return;
     const {error:delErr}=await sb.from('agenda').delete().eq('dia_indice',activeDay).eq('status','programada');
     if(delErr)return alert('Não foi possível limpar a rota anterior: '+delErr.message);
-    const ordered=[];
-    for(let car=0;car<3;car++){
-      const group=groups[car];if(!group)continue;
-      for(let localPos=0;localPos<group.items.length;localPos++){
-        const church=group.items[localPos],cfg=cfgFor(church),pos=car*4+localPos;
+    const ordered=[];let pos=0;
+    for(let car=0;car<groups.length;car++){
+      const group=groups[car];
+      for(const church of group.items){
+        const cfg=cfgFor(church);
         const payload={igreja:church.name,cidade:church.city,endereco:church.addr,data_visita:null,horario:cfg.culto_horario||null,equipe:'Equipe '+String.fromCharCode(65+car),carro:CAR_NAMES[car],status:'programada',observacao:`${TAG} ${label} · prioridade ${cityRank(group.city)+1} · ${CAR_NAMES[car]} exclusivo para ${group.city}`,criado_por:authUser.id,atualizado_por:authUser.id,dia_indice:activeDay,posicao:pos};
-        const {error}=await sb.from('agenda').insert(payload);if(error)return alert('Erro ao salvar '+CAR_NAMES[car]+' parada '+(localPos+1)+': '+error.message);
-        ordered[pos]=church;
+        const {error}=await sb.from('agenda').insert(payload);if(error)return alert('Erro ao salvar '+CAR_NAMES[car]+': '+error.message);
+        ordered.push(church);pos++;
       }
     }
-    D.routes[activeDay]=ordered.filter(Boolean);
+    D.routes[activeDay]=ordered;
     await registrarAtividade('rota_prioridade_cidades_v5',null,null,label+' · '+resumo);
-    if(typeof loadRouteOverrides==='function')await loadRouteOverrides();
-    else {if(typeof renderRoute==='function')renderRoute();if(typeof updateMapDay==='function'&&typeof map!=='undefined'&&map)updateMapDay();}
+    if(typeof renderRoute==='function')renderRoute();
+    if(typeof updateMapDay==='function'&&typeof map!=='undefined'&&map)updateMapDay();
     alert('Rota gerada seguindo a ordem das cidades.\n'+resumo);
   }
 
@@ -87,7 +94,7 @@
       tools.appendChild(box);
     }
   }
-  window.CITY_PRIORITY= CITY_PRIORITY.slice();
+  window.CITY_PRIORITY=CITY_PRIORITY.slice();
   window.gerarRotaPorPrioridade=gerarPorPrioridade;
   setTimeout(decorate,500);setTimeout(decorate,1400);setTimeout(decorate,2800);
 })();
