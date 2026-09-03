@@ -27,3 +27,4 @@ setTimeout(()=>{if(authUser)carregarIgrejaCfg();},1200);
 (function(){const s=document.createElement('script');s.src='prioridade-cidades-v6.js?v=1';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='agenda-fonte-oficial-v6.js?v=1';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='mapa-agenda-v4.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='visitas-global-v2.js?v=3';s.async=false;document.body.appendChild(s);})();
