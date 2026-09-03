@@ -1,6 +1,6 @@
-// Visitas V2 — status global por igreja, sincronizado para toda a equipe.
-(function visitasGlobalV2(){
-  let busy=new Set();
+// Visitas V3 — qualquer integrante marca; somente administrador desvisita globalmente.
+(function visitasGlobalV3(){
+  const busy=new Set();
   const key=(city,idx)=>city+'|'+idx;
 
   function repaint(){
@@ -9,6 +9,21 @@
     if(typeof renderAll==='function')renderAll();
     if(typeof updateKpis==='function')updateKpis();
     if(typeof updateMapDay==='function'&&typeof map!=='undefined'&&map)updateMapDay();
+    decorateButtons();
+  }
+
+  function decorateButtons(){
+    setTimeout(()=>{
+      document.querySelectorAll('.check.done').forEach(btn=>{
+        if(typeof isAdmin==='function'&&isAdmin()){
+          btn.textContent='DESVISITAR';
+          btn.title='Administrador: remover a marcação de visitada para toda a equipe';
+        }else{
+          btn.textContent='✓ VISITADA';
+          btn.title='Somente o administrador pode desvisitar';
+        }
+      });
+    },0);
   }
 
   async function syncFull(){
@@ -29,8 +44,15 @@
   async function setVisit(city,idx){
     const k=key(city,idx),church=(D.cities?.[city]||[])[idx];
     if(!church||!authUser||busy.has(k))return;
+    const was=!!state.visited[k];
+
+    // Integrante pode marcar, mas não pode desmarcar.
+    if(was&&!(typeof isAdmin==='function'&&isAdmin())){
+      return alert('Esta igreja já está marcada como visitada. Somente o administrador pode desvisitar.');
+    }
+
     busy.add(k);
-    const was=!!state.visited[k],target=!was;
+    const target=!was;
     state.visited[k]=target;
     repaint();
     try{
@@ -45,12 +67,14 @@
         }
         if(typeof registrarAtividade==='function')await registrarAtividade('visita',church.name,city,'Marcou a igreja como visitada');
       }else{
+        if(!(typeof isAdmin==='function'&&isAdmin()))throw new Error('Somente o administrador pode desvisitar.');
         let q=sb.from('visitas').delete().eq('cidade',city).eq('igreja',church.name).eq('status','visitada');
         q=(church.addr||'')?q.eq('endereco',church.addr):q.or('endereco.is.null,endereco.eq.');
         const {error}=await q;
         if(error)throw error;
-        if(typeof registrarAtividade==='function')await registrarAtividade('visita_desfeita',church.name,city,'Removeu globalmente a marcação de visitada');
+        if(typeof registrarAtividade==='function')await registrarAtividade('visita_desfeita',church.name,city,'Administrador removeu globalmente a marcação de visitada');
       }
+      // Sempre confirma o resultado real do banco após a ação.
       await syncFull();
     }catch(e){
       state.visited[k]=was;
@@ -67,6 +91,11 @@
     const prev=window.aplicarSessao;
     window.aplicarSessao=async function(session){await prev(session);await syncFull();};
   }
+  const prevRoute=window.renderRoute;
+  if(typeof prevRoute==='function')window.renderRoute=function(){const r=prevRoute.apply(this,arguments);decorateButtons();return r;};
+  const prevAll=window.renderAll;
+  if(typeof prevAll==='function')window.renderAll=function(){const r=prevAll.apply(this,arguments);decorateButtons();return r;};
+
   setTimeout(()=>{if(typeof authUser!=='undefined'&&authUser)syncFull();},900);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&authUser)setTimeout(syncFull,100);});
 })();
