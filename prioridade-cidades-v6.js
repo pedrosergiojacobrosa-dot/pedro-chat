@@ -9,7 +9,8 @@
   const key=x=>x.city+'|'+x.idx;
   const cfg=x=>typeof cfgDaIgreja==='function'?cfgDaIgreja(x.city,x.name,x.addr):{};
   const cityRank=c=>rankMap.has(norm(c))?rankMap.get(norm(c)):1000;
-  const hasCult=(x,t)=>{const c=cfg(x);if(c.culto_status==='conflito')return false;return !!t&&norm(c.culto_dias).includes(t);};
+  // A regra operacional nova usa os DIAS marcados. O status "conflito" é apenas aviso e não bloqueia uma igreja.
+  const hasCult=(x,t)=>{const c=cfg(x);return !!t&&norm(c.culto_dias).includes(t);};
   const itemSort=(a,b)=>{const pa=cfg(a).prioridade==='alta'?0:cfg(a).prioridade==='baixa'?2:1,pb=cfg(b).prioridade==='alta'?0:cfg(b).prioridade==='baixa'?2:1;return pa-pb||Number(cfg(b).culto_status==='confirmado')-Number(cfg(a).culto_status==='confirmado')||a.name.localeCompare(b.name,'pt-BR');};
   function pools(eligible){const g={};eligible.forEach(x=>(g[x.city]||(g[x.city]=[])).push(x));return Object.entries(g).map(([city,items])=>({city,items:items.sort(itemSort)})).sort((a,b)=>cityRank(a.city)-cityRank(b.city)||a.city.localeCompare(b.city,'pt-BR'));}
   function build(eligible){const ps=pools(eligible),groups=[];for(const p of ps){while(p.items.length>=4&&groups.length<3)groups.push({city:p.city,items:p.items.splice(0,4)});if(groups.length===3)break;}if(groups.length<3){const p=ps.find(x=>x.items.length>0);if(p)groups.push({city:p.city,items:p.items.splice(0,4)});}return groups;}
