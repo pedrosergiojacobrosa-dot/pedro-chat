@@ -108,33 +108,27 @@
   }
 
   function clusterCars(selected){
-    const capacity=[4,4,4];
     const groups=[[],[],[]];
-    if(!selected.length)return groups;
-    const remaining=selected.slice();
-    const seeds=[];
-    seeds.push(remaining.shift());
-    while(seeds.length<3&&remaining.length){
-      let bestIndex=0,bestScore=-1;
-      remaining.forEach((x,i)=>{
-        const score=Math.min(...seeds.map(s=>dist(coordFor(x),coordFor(s))));
-        if(score>bestScore){bestScore=score;bestIndex=i;}
-      });
-      seeds.push(remaining.splice(bestIndex,1)[0]);
-    }
-    seeds.forEach((s,i)=>groups[i].push(s));
-    remaining.forEach(x=>{
-      const options=groups.map((g,i)=>({i,space:capacity[i]-g.length,d:Math.min(...g.map(y=>dist(coordFor(x),coordFor(y))))})).filter(o=>o.space>0).sort((a,b)=>a.d-b.d||b.space-a.space);
-      groups[options[0]?.i??0].push(x);
-    });
-    return groups.map(g=>{
-      const out=[];let here=ITU_COORD;const rest=g.slice();
-      while(rest.length){
-        rest.sort((a,b)=>dist(coordFor(a),here)-dist(coordFor(b),here)||priorityRank(a)-priorityRank(b));
-        const next=rest.shift();out.push(next);here=coordFor(next);
+    const rest=selected.slice();
+    for(let car=0;car<3&&rest.length;car++){
+      const seed=rest.shift();
+      const group=[seed];
+      while(group.length<4&&rest.length){
+        rest.sort((a,b)=>{
+          const da=Math.min(...group.map(y=>dist(coordFor(a),coordFor(y))));
+          const db=Math.min(...group.map(y=>dist(coordFor(b),coordFor(y))));
+          return da-db||priorityRank(a)-priorityRank(b)||confirmedRank(a)-confirmedRank(b);
+        });
+        group.push(rest.shift());
       }
-      return out;
-    });
+      const ordered=[];let here=ITU_COORD;const pending=group.slice();
+      while(pending.length){
+        pending.sort((a,b)=>dist(coordFor(a),here)-dist(coordFor(b),here)||priorityRank(a)-priorityRank(b));
+        const next=pending.shift();ordered.push(next);here=coordFor(next);
+      }
+      groups[car]=ordered;
+    }
+    return groups;
   }
 
   async function syncAutoRoutesV2(){
