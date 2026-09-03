@@ -12,7 +12,7 @@
     const token=window.getOperationalDayToken(i);
     if(!token)return new Date(NaN);
     const idx=DAYS.findIndex(x=>x[0]===token);
-    return new Date(2000,0,2+idx,12,0,0); // domingo 02/01/2000 como referência técnica invisível
+    return new Date(2000,0,2+idx,12,0,0);
   };
   window.dk=function(){return null;};
   window.pt=function(){
@@ -76,12 +76,8 @@
   }
 
   function refresh(){
-    hideCalendar();
-    rewriteSelectors();
-    syncPicker();
-    if(typeof renderRoute==='function'&&!refresh.lock){
-      refresh.lock=true;try{renderRoute();}finally{refresh.lock=false;}
-    }
+    hideCalendar();rewriteSelectors();syncPicker();
+    if(typeof renderRoute==='function'&&!refresh.lock){refresh.lock=true;try{renderRoute();}finally{refresh.lock=false;}}
     if(typeof updateMapDay==='function'&&typeof map!=='undefined'&&map)updateMapDay();
   }
 
@@ -91,21 +87,15 @@
     if(error){console.warn('dias operacionais',error.message);return;}
     config={};(data||[]).forEach(r=>config[Number(r.dia_indice)]=r.dia_semana);
     refresh();
-    if(!channel){
-      channel=sb.channel('rota-dias-realtime').on('postgres_changes',{event:'*',schema:'public',table:'rota_dias'},()=>setTimeout(load,150)).subscribe();
-    }
+    if(!channel){channel=sb.channel('rota-dias-realtime').on('postgres_changes',{event:'*',schema:'public',table:'rota_dias'},()=>setTimeout(load,150)).subscribe();}
   }
 
   const previousRender=window.renderRoute;
-  if(typeof previousRender==='function'){
-    window.renderRoute=function(){const r=previousRender.apply(this,arguments);hideCalendar();rewriteSelectors();syncPicker();return r;};
-  }
+  if(typeof previousRender==='function')window.renderRoute=function(){const r=previousRender.apply(this,arguments);hideCalendar();rewriteSelectors();syncPicker();return r;};
   const previousTab=window.tab;
-  if(typeof previousTab==='function'){
-    window.tab=function(id){if(id==='cal')id='rota';const r=previousTab(id);setTimeout(()=>{hideCalendar();rewriteSelectors();syncPicker();},20);return r;};
-  }
+  if(typeof previousTab==='function')window.tab=function(id){if(id==='cal')id='rota';const r=previousTab(id);setTimeout(()=>{hideCalendar();rewriteSelectors();syncPicker();},20);return r;};
 
   window.loadOperationalDays=load;
   hideCalendar();rewriteSelectors();ensureWeekdayPicker();syncPicker();
-  setTimeout(load,500);setTimeout(load,1600);
+  let loginWatch=setInterval(()=>{if(typeof authUser!=='undefined'&&authUser){load();if(channel)clearInterval(loginWatch);}},1000);
 })();
