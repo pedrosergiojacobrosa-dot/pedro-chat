@@ -13,15 +13,8 @@
 
   function deriveLegacyHours(cfg){
     const out={},combined=norm([cfg?.culto_dias||'',cfg?.culto_horario||''].filter(Boolean).join(' ; '));
-    for(const [token] of DAYS){
-      for(const alias of ALIASES[token]){
-        const idx=combined.indexOf(alias);if(idx<0)continue;
-        const nearby=combined.slice(idx+alias.length,idx+alias.length+38);
-        const t=normalizeTime(nearby);if(t){out[token]=t;break;}
-      }
-    }
-    const selected=DAYS.filter(([t])=>tokenPresent(cfg?.culto_dias,t));
-    if(selected.length===1&&!out[selected[0][0]]){const t=normalizeTime(cfg?.culto_horario);if(t)out[selected[0][0]]=t;}
+    for(const [token] of DAYS){for(const alias of ALIASES[token]){const idx=combined.indexOf(alias);if(idx<0)continue;const nearby=combined.slice(idx+alias.length,idx+alias.length+38),t=normalizeTime(nearby);if(t){out[token]=t;break;}}}
+    const selected=DAYS.filter(([t])=>tokenPresent(cfg?.culto_dias,t));if(selected.length===1&&!out[selected[0][0]]){const t=normalizeTime(cfg?.culto_horario);if(t)out[selected[0][0]]=t;}
     return out;
   }
 
@@ -43,10 +36,19 @@
   function fillSchedule(cfg){ensureScheduleGrid();const schedule=scheduleFor(cfg||{});for(const [token] of DAYS){const cb=document.querySelector(`[data-cult-day="${token}"]`),time=document.querySelector(`[data-cult-time="${token}"]`),checked=tokenPresent(cfg?.culto_dias,token);if(cb)cb.checked=checked;if(time){time.disabled=!checked;time.value=checked?(schedule[token]||''):'';}}}
   function collectSchedule(){const hours={},labels=[];for(const [token,label] of DAYS){const cb=document.querySelector(`[data-cult-day="${token}"]`),time=document.querySelector(`[data-cult-time="${token}"]`);if(cb?.checked){labels.push(label);if(time?.value)hours[token]=time.value;}}const summary=DAYS.filter(([t])=>hours[t]).map(([t])=>SHORT[t]+' '+hours[t]).join('; ');return {labels,hours,summary};}
 
+  async function syncAgendaHours(city,name,addr,hours){
+    if(typeof sb==='undefined'||!authUser)return;
+    let q=sb.from('agenda').select('id,dia_indice').eq('status','programada').eq('cidade',city).eq('igreja',name);
+    if(addr)q=q.eq('endereco',addr);
+    const {data,error}=await q;if(error){console.warn('sincronizar horários da rota',error.message);return;}
+    for(const row of data||[]){const token=window.getOperationalDayToken?.(Number(row.dia_indice));const hour=token?(hours[token]||null):null;const {error:e}=await sb.from('agenda').update({horario:hour,atualizado_por:authUser.id}).eq('id',row.id);if(e)console.warn('horário da rota',e.message);}
+    if(typeof window.carregarRotaOficial==='function')await window.carregarRotaOficial();
+  }
+
   function patch(){
     ensureScheduleGrid();
     if(typeof window.abrirEditorCulto==='function'&&!window.abrirEditorCulto.__hoursV4){const prev=window.abrirEditorCulto;const wrapped=function(c,n,a){const r=prev(c,n,a),cfg=typeof cfgDaIgreja==='function'?cfgDaIgreja(c,n,a):{};setTimeout(()=>fillSchedule(cfg),0);return r;};wrapped.__hoursV4=true;window.abrirEditorCulto=wrapped;}
-    if(typeof window.salvarEditorCulto==='function'&&!window.salvarEditorCulto.__hoursV4){const wrapped=async function(){const b=document.getElementById('ceSave'),c=document.getElementById('ceCity').value,n=document.getElementById('ceName').value,a=document.getElementById('ceAddr').value,sch=collectSchedule();if(!sch.labels.length)return alert('Marque pelo menos um dia de culto.');const patch={prioridade:document.getElementById('cePrior').value,culto_status:document.getElementById('ceStatus').value,culto_dias:sch.labels.join(', '),culto_horarios:sch.hours,culto_horario:sch.summary,culto_fonte:document.getElementById('ceFonte').value.trim(),observacao:document.getElementById('ceObs').value.trim()};try{b.disabled=true;b.textContent='Salvando...';await salvarCfgIgreja(c,n,a,patch);if(typeof fecharEditorCulto==='function')fecharEditorCulto();if(typeof renderPainelCultos==='function')renderPainelCultos();}catch(e){alert('Não foi possível salvar: '+(e?.message||e));}finally{b.disabled=false;b.textContent='Salvar alterações';}};wrapped.__hoursV4=true;window.salvarEditorCulto=wrapped;}
+    if(typeof window.salvarEditorCulto==='function'&&!window.salvarEditorCulto.__hoursV4){const wrapped=async function(){const b=document.getElementById('ceSave'),c=document.getElementById('ceCity').value,n=document.getElementById('ceName').value,a=document.getElementById('ceAddr').value,sch=collectSchedule();if(!sch.labels.length)return alert('Marque pelo menos um dia de culto.');const patch={prioridade:document.getElementById('cePrior').value,culto_status:document.getElementById('ceStatus').value,culto_dias:sch.labels.join(', '),culto_horarios:sch.hours,culto_horario:sch.summary,culto_fonte:document.getElementById('ceFonte').value.trim(),observacao:document.getElementById('ceObs').value.trim()};try{b.disabled=true;b.textContent='Salvando...';await salvarCfgIgreja(c,n,a,patch);await syncAgendaHours(c,n,a,sch.hours);if(typeof fecharEditorCulto==='function')fecharEditorCulto();if(typeof renderPainelCultos==='function')renderPainelCultos();}catch(e){alert('Não foi possível salvar: '+(e?.message||e));}finally{b.disabled=false;b.textContent='Salvar alterações';}};wrapped.__hoursV4=true;window.salvarEditorCulto=wrapped;}
   }
   setTimeout(patch,300);setTimeout(patch,1000);setTimeout(patch,2200);
 })();
