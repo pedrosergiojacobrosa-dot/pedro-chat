@@ -35,3 +35,5 @@ setTimeout(()=>{if(authUser)carregarIgrejaCfg();},1200);
 (function(){const s=document.createElement('script');s.src='avisos-operacionais-v1.js?v=1';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='visitas-rotas-v1.js?v=2';s.async=false;document.body.appendChild(s);})();
 (function(){const s=document.createElement('script');s.src='rota-alternativa-sorocaba-v1.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='rotas-alternativas-cidades-v2.js?v=1';s.async=false;document.body.appendChild(s);})();
+(function(){const s=document.createElement('script');s.src='status-dias-v1.js?v=1';s.async=false;document.body.appendChild(s);})();
