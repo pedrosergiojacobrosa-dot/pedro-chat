@@ -1,40 +1,32 @@
-// Rota Alternativa Sorocaba V1 — ignora dias de culto e organiza pendentes por proximidade/bairro.
-(function rotaAlternativaSorocabaV1(){
-  let altPage=0;
-  const PAGE_SIZE=12;
-  const CARS=['Carro A','Carro B','Carro C'];
-  const COLORS={'Carro A':'#176b3a','Carro B':'#2563eb','Carro C':'#d97706'};
+// Rota Alternativa V4 — 4 carros, 4 pessoas por carro e cidade independente por equipe.
+(function rotaAlternativaV4(){
+  const CARS=['Carro A','Carro B','Carro C','Carro D'];
+  const COLORS={'Carro A':'#176b3a','Carro B':'#2563eb','Carro C':'#d97706','Carro D':'#7c3aed'};
+  const KEY='rota_alternativa_cidades_v4';
+  let selected={};
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
-  // Agrupamento operacional por regiões/bairros de Sorocaba para reduzir deslocamentos cruzados.
-  const ZONES=[
-    {name:'Zona Norte',rank:1,keys:['parque sao bento','vitoria regia','sao guilherme','brasilandia','húngares','hungares','vila gomes','itavuvu','maria antonia prado','pacaembu','maria eugenia','laranjeiras','novo mundo','ana maria','vila angelica']},
-    {name:'Zona Oeste',rank:2,keys:['piazza di roma','itanguá','itangua','guaiba','abatia','wanel','central parque','julio de mesquita','eden']},
-    {name:'Zona Leste',rank:3,keys:['hortencia','colorau','alem ponte','barcelona','vila haro','vila santana','vila carvalho']},
-    {name:'Centro / Sul',rank:4,keys:['centro','vila augusta','campolim','verg ueiro','vergueiro','jardim europa','jardim faculdade','alem linha']}
-  ];
-
-  function zoneFor(x){
-    const s=norm((x.name||'')+' '+(x.addr||''));
-    for(const z of ZONES){if(z.keys.some(k=>s.includes(norm(k))))return z;}
-    return {name:'Sorocaba — demais bairros',rank:9,keys:[]};
+  function cidades(){
+    if(typeof allChurches!=='function')return [];
+    return [...new Set(allChurches().map(x=>x.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   }
-  function bairroFor(x){
-    const a=String(x.addr||'');
-    const m=a.match(/(?:—|,|-)\s*((?:Jardim|Jd\.?|Vila|Parque|Portal|Centro|Residencial|Loteamento|Conjunto|Chácara|Chacara)\s+[^—,.;]+)/i);
-    return m?m[1].trim():zoneFor(x).name;
+  function load(){
+    try{selected=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){selected={};}
+    const cs=cidades();
+    CARS.forEach((car,i)=>{if(!cs.includes(selected[car]))selected[car]=cs[i%Math.max(1,cs.length)]||'';});
   }
-  function pending(){
-    if(typeof allChurches!=='function'||typeof state==='undefined')return [];
-    return allChurches()
-      .filter(x=>norm(x.city)==='sorocaba'&&!state?.visited?.[x.city+'|'+x.idx])
-      .map(x=>({...x,_zone:zoneFor(x),_bairro:bairroFor(x)}))
-      .sort((a,b)=>a._zone.rank-b._zone.rank||a._bairro.localeCompare(b._bairro,'pt-BR')||a.name.localeCompare(b.name,'pt-BR'));
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(selected));}catch(e){}}
+  function pending(city){
+    if(typeof allChurches!=='function')return [];
+    return allChurches().filter(x=>x.city===city&&!state?.visited?.[x.city+'|'+x.idx]);
   }
-  function batches(){const p=pending();return Array.from({length:Math.ceil(p.length/PAGE_SIZE)},(_,i)=>p.slice(i*PAGE_SIZE,(i+1)*PAGE_SIZE));}
-  function groupsFor(items){return CARS.map((car,i)=>({car,items:items.slice(i*4,i*4+4)}));}
-
+  function itemsFor(car){
+    const city=selected[car]||'';
+    const same=CARS.filter(c=>selected[c]===city);
+    const offset=Math.max(0,same.indexOf(car))*4;
+    return pending(city).slice(offset,offset+4);
+  }
+  function setCity(car,city){selected[car]=city;save();render();}
   function routeUrl(items,pickup){
     if(!items.length)return '#';
     const ordered=pickup?items.slice().reverse():items.slice();
@@ -43,57 +35,40 @@
     const way=pickup?ordered.slice(1).map(x=>x.addr):ordered.slice(0,-1).map(x=>x.addr);
     return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(dest)+(way.length?'&waypoints='+way.map(encodeURIComponent).join('|'):'');
   }
-  function openGroup(car,pickup){
-    const bs=batches(),items=bs[altPage]||[],g=groupsFor(items).find(x=>x.car===car);
-    if(!g||!g.items.length)return alert(car+' não tem igrejas neste grupo.');
-    window.open(routeUrl(g.items,pickup),'_blank');
+  function openCar(car,pickup){
+    const items=itemsFor(car);
+    if(!items.length)return alert(car+' não tem igrejas pendentes na cidade escolhida.');
+    window.open(routeUrl(items,pickup),'_blank');
   }
-
+  function card(car){
+    const city=selected[car]||'',cs=cidades(),items=itemsFor(car),color=COLORS[car];
+    return `<div class="card" style="border-top:5px solid ${color}"><div class="car-title"><div><b>🚙 ${car}</b><div class="small muted">4 pessoas · uma cidade por carro</div></div><div class="small" style="font-weight:800;color:${color}">${esc(city||'Escolha a cidade')}</div></div><label class="small muted"><b>Cidade desta equipe</b></label><select style="width:100%;margin:6px 0 12px" onchange='alterarCidadeRotaAlternativa(${JSON.stringify(car)},this.value)'>${cs.map(c=>`<option value="${esc(c)}" ${c===city?'selected':''}>${esc(c)}</option>`).join('')}</select>${items.map((x,i)=>`<div class="stop"><div class="num">${i+1}</div><div><div class="small muted">PESSOA ${i+1} · FICA NESTA IGREJA</div><b>${esc(x.name)}</b><div class="small"><b>${esc(x.city)}</b> — ${esc(x.addr)}</div></div><div><button class="check" onclick='toggleVisit(${JSON.stringify(x.city)},${x.idx})'>MARCAR VISITADA</button><br><a class="maplink" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(x.addr)}">🗺️ Navegar</a></div></div>`).join('')||'<div class="small muted" style="padding:12px 2px">Sem igrejas pendentes nesta cidade para este carro.</div>'}<div class="toolbar"><button class="btn" onclick='abrirRotaAlternativaCidade(${JSON.stringify(car)},false)'>🗺️ Abrir rota</button><button class="btn secondary" onclick='abrirRotaAlternativaCidade(${JSON.stringify(car)},true)'>↩ Buscar equipe</button></div></div>`;
+  }
   function ensureUI(){
-    if(document.getElementById('rotaAlternativa'))return;
     const nav=document.querySelector('header nav');
-    if(nav&&!document.getElementById('altRouteNav')){
-      const btn=document.createElement('button');btn.id='altRouteNav';btn.textContent='🔀 Rota alternativa';
-      btn.onclick=()=>{if(typeof tab==='function')tab('rotaAlternativa');setTimeout(render,30);};
-      const ref=[...nav.querySelectorAll('button')].find(b=>/todas as igrejas/i.test(b.textContent||''));
-      nav.insertBefore(btn,ref||null);
-    }
+    let btn=document.getElementById('altRouteNav');
+    if(!btn&&nav){btn=document.createElement('button');btn.id='altRouteNav';nav.appendChild(btn);}
+    if(btn){btn.textContent='🔀 Rotas alternativas';btn.onclick=()=>{if(typeof tab==='function')tab('rotaAlternativa');setTimeout(render,30);};}
+    const duplicate=document.getElementById('altRouteCityNav');if(duplicate)duplicate.remove();
+    const duplicateSection=document.getElementById('rotaAlternativaCidade');if(duplicateSection)duplicateSection.remove();
     const main=document.querySelector('main');if(!main)return;
-    const sec=document.createElement('section');sec.className='tab';sec.id='rotaAlternativa';
-    sec.innerHTML=`<div class="notice" style="border-color:#d59c27;background:#fff8df"><b>⚠ ROTA ALTERNATIVA — TERMINAR SOROCABA.</b><br>Esta aba ignora os dias de culto e considera todas as igrejas pendentes de Sorocaba como disponíveis. As igrejas já visitadas desaparecem automaticamente. A ordem é organizada por <b>proximidade de região/bairro</b> para reduzir deslocamentos.</div><div class="grid"><div class="card kpi"><span class="muted">Pendentes em Sorocaba</span><b id="altPending">0</b></div><div class="card kpi"><span class="muted">Grupos restantes</span><b id="altGroups">0</b></div><div class="card kpi"><span class="muted">Igrejas neste grupo</span><b id="altThis">0</b></div><div class="card kpi"><span class="muted">Regiões neste grupo</span><b id="altZones">0</b></div></div><div class="toolbar" style="margin-top:12px"><button class="btn secondary" onclick="rotaAlternativaAnterior()">‹ Grupo anterior</button><button class="btn" onclick="rotaAlternativaProxima()">Próximo grupo ›</button><span class="small muted" id="altPageLabel"></span></div><div id="altCards"></div>`;
-    main.appendChild(sec);
+    let sec=document.getElementById('rotaAlternativa');
+    if(!sec){sec=document.createElement('section');sec.className='tab';sec.id='rotaAlternativa';main.appendChild(sec);}
   }
-
-  function cardHtml(g){
-    const color=COLORS[g.car],zones=[...new Set(g.items.map(x=>x._zone.name))];
-    return `<div class="card" style="border-top:5px solid ${color}"><div class="car-title"><div><b>🚙 ${g.car}</b><div class="small muted">${g.items.length} pessoa${g.items.length===1?'':'s'} · ${esc(zones.join(' / ')||'sem paradas')}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn secondary" style="padding:6px 8px" onclick='abrirRotaAlternativa(${JSON.stringify(g.car)},false)'>🗺️ Abrir rota</button><button class="btn secondary" style="padding:6px 8px" onclick='abrirRotaAlternativa(${JSON.stringify(g.car)},true)'>↩ Buscar equipe</button></div></div>${g.items.map((x,i)=>`<div class="stop"><div class="num">${i+1}</div><div><div class="small" style="font-weight:800;color:${color}">${esc(x._zone.name)} · ${esc(x._bairro)}</div><b>${esc(x.name)}</b><div class="small">${esc(x.addr)}</div><div class="small" style="margin-top:4px;color:#a16207">⚠ Rota alternativa: culto não considerado</div></div><div><button class="check" onclick='toggleVisit(${JSON.stringify(x.city)},${x.idx})'>MARCAR VISITADA</button><br><a class="maplink" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(x.addr)}">🗺️ Navegar</a></div></div>`).join('')||'<div class="small muted" style="padding:10px 2px">Sem paradas neste carro.</div>'}</div>`;
+  function patchHeader(){
+    const p=document.querySelector('header p');if(p)p.textContent='Plano operacional pré-elaborado • 4 carros • 16 pessoas • líder: você';
   }
-
   function render(){
-    ensureUI();
-    const p=pending(),bs=batches();
-    if(altPage>=bs.length)altPage=Math.max(0,bs.length-1);
-    const items=bs[altPage]||[],groups=groupsFor(items),zones=[...new Set(items.map(x=>x._zone.name))];
-    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-    set('altPending',p.length);set('altGroups',bs.length);set('altThis',items.length);set('altZones',zones.length);set('altPageLabel',bs.length?'Grupo '+(altPage+1)+' de '+bs.length:'Sorocaba concluída');
-    const box=document.getElementById('altCards');if(box)box.innerHTML=p.length?`<div class="cargrid">${groups.map(cardHtml).join('')}</div>`:'<div class="card"><h2>✅ Sorocaba concluída</h2><p class="muted">Não há mais igrejas pendentes em Sorocaba.</p></div>';
+    ensureUI();patchHeader();
+    const sec=document.getElementById('rotaAlternativa');if(!sec)return;
+    sec.innerHTML=`<div class="notice" style="border-color:#9fc7aa;background:#eef8f1"><b>🔀 ROTAS ALTERNATIVAS POR CIDADE</b><br>Escolha uma cidade diferente para cada carro. Exemplo: <b>Carro A — Porto Feliz</b>, <b>Carro B — Sorocaba</b>, <b>Carro C — Itu</b> e <b>Carro D — Salto</b>. Cada carro leva até <b>4 pessoas</b> e permanece em uma única cidade.</div><div class="grid"><div class="card kpi"><span class="muted">Carros</span><b>4</b></div><div class="card kpi"><span class="muted">Pessoas por carro</span><b>4</b></div><div class="card kpi"><span class="muted">Capacidade total</span><b>16</b></div><div class="card kpi"><span class="muted">Cidades disponíveis</span><b>${cidades().length}</b></div></div><div class="cargrid" style="margin-top:13px">${CARS.map(card).join('')}</div>`;
   }
-  function next(){const n=batches().length;if(altPage<n-1)altPage++;render();}
-  function prev(){if(altPage>0)altPage--;render();}
-
+  window.alterarCidadeRotaAlternativa=setCity;
+  window.abrirRotaAlternativaCidade=openCar;
   window.renderRotaAlternativaSorocaba=render;
-  window.rotaAlternativaProxima=next;
-  window.rotaAlternativaAnterior=prev;
-  window.abrirRotaAlternativa=openGroup;
-  ensureUI();render();
-
-  // Após marcar visita, recalcula imediatamente os grupos e remove a igreja da alternativa.
-  setTimeout(()=>{
-    if(typeof window.toggleVisit==='function'&&!window.toggleVisit.__altSorocaba){
-      const old=window.toggleVisit;
-      const wrapped=async function(){const r=await old.apply(this,arguments);setTimeout(render,80);return r;};
-      wrapped.__altSorocaba=true;window.toggleVisit=wrapped;
-    }
-  },6500);
+  window.renderRotaAlternativa=render;
+  load();ensureUI();render();
+  setTimeout(()=>{load();ensureUI();render();},900);
+  setTimeout(()=>{ensureUI();render();},3000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(render,100);});
 })();
